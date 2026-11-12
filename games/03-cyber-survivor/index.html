@@ -6,23 +6,28 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
-    <title>Cyber Survivor</title>
+    <title>Cyber Survivor - Action Roguelike</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
     <style>
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-      html, body {
+
+      html,
+      body {
         width: 100%;
         height: 100%;
         overflow: hidden;
-        background: #08090f;
-        color: #fff;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #040509;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         touch-action: none;
         user-select: none;
+        -webkit-user-select: none;
       }
+
       #game-container {
         position: relative;
         width: 100%;
@@ -30,18 +35,618 @@
         display: flex;
         align-items: center;
         justify-content: center;
+        background: radial-gradient(circle at center, #0a0c1a 0%, #040509 100%);
       }
-      canvas {
-        background: #0c0e18;
-        box-shadow: 0 0 40px rgba(0, 255, 128, 0.2);
+
+      #game-wrapper {
+        position: relative;
+        width: 480px;
+        height: 800px;
+        transform-origin: center center;
+        box-shadow: 0 0 50px rgba(0, 240, 255, 0.15);
+        overflow: hidden;
+        background: #070814;
+      }
+
+      #game-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 480px;
+        height: 800px;
         display: block;
+      }
+
+      /* --- Top XP Bar --- */
+      #xp-bar-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 14px;
+        background: rgba(10, 15, 28, 0.9);
+        border-bottom: 1px solid rgba(0, 240, 255, 0.3);
+        z-index: 20;
+        overflow: hidden;
+      }
+
+      #xp-bar-fill {
+        width: 0%;
+        height: 100%;
+        background: linear-gradient(90deg, #00ff88, #00f0ff);
+        box-shadow: 0 0 12px #00f0ff;
+        transition: width 0.15s ease-out;
+      }
+
+      #lvl-badge {
+        position: absolute;
+        top: 18px;
+        left: 14px;
+        background: rgba(8, 12, 24, 0.88);
+        border: 1px solid #00f0ff;
+        border-radius: 8px;
+        padding: 3px 10px;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 1.5px;
+        color: #00f0ff;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+        z-index: 20;
+      }
+
+      /* --- Header HUD --- */
+      #hud-header {
+        position: absolute;
+        top: 18px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none;
+        z-index: 20;
+      }
+
+      .hud-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .hp-container {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        background: rgba(8, 12, 24, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 8px;
+        padding: 4px 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .hp-label {
+        font-size: 9px;
+        font-weight: 800;
+        color: #00ff88;
+        letter-spacing: 1px;
+      }
+
+      .hp-bar-bg {
+        width: 70px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+
+      #hp-bar-fill {
+        width: 100%;
+        height: 100%;
+        background: #00ff88;
+        border-radius: 3px;
+        transition: width 0.2s ease;
+      }
+
+      .hud-center {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        background: rgba(8, 12, 24, 0.88);
+        border: 1px solid rgba(0, 240, 255, 0.3);
+        border-radius: 8px;
+        padding: 4px 12px;
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.15);
+      }
+
+      #hud-timer {
+        font-size: 15px;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: 1px;
+      }
+
+      #hud-kills {
+        font-size: 13px;
+        font-weight: 800;
+        color: #ff0055;
+        letter-spacing: 0.5px;
+      }
+
+      .hud-right {
+        display: flex;
+        align-items: center;
+        pointer-events: auto;
+      }
+
+      .hud-icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        background: rgba(14, 18, 32, 0.88);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        color: #ffffff;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .hud-icon-btn:hover {
+        border-color: #00f0ff;
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+      }
+
+      /* --- Boss HUD Alert --- */
+      #boss-hud {
+        position: absolute;
+        top: 60px;
+        left: 20px;
+        right: 20px;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        z-index: 20;
+        pointer-events: none;
+      }
+
+      #boss-hud.visible {
+        display: flex;
+        animation: bossPulse 1s infinite alternate;
+      }
+
+      @keyframes bossPulse {
+        0% { transform: scale(0.98); }
+        100% { transform: scale(1.02); }
+      }
+
+      .boss-label {
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        color: #ff0055;
+        text-shadow: 0 0 10px #ff0055;
+      }
+
+      .boss-hp-bg {
+        width: 100%;
+        max-width: 320px;
+        height: 10px;
+        background: rgba(20, 10, 15, 0.85);
+        border: 1px solid #ff0055;
+        border-radius: 5px;
+        overflow: hidden;
+        box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+      }
+
+      #boss-hp-fill {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #ff0055, #ffbe0b);
+        transition: width 0.1s ease;
+      }
+
+      /* --- Common Modal Layout --- */
+      .modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(5, 6, 14, 0.88);
+        backdrop-filter: blur(8px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 100;
+      }
+
+      .modal-overlay.visible {
+        display: flex;
+        animation: modalIn 0.25s ease-out;
+      }
+
+      @keyframes modalIn {
+        from {
+          opacity: 0;
+          transform: scale(0.95);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .modal-window {
+        width: 100%;
+        max-width: 410px;
+        background: linear-gradient(155deg, #101426, #161c36);
+        border: 2px solid #00f0ff;
+        border-radius: 18px;
+        padding: 22px 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 16px;
+        box-shadow: 0 0 35px rgba(0, 240, 255, 0.35);
+      }
+
+      .modal-title {
+        font-size: 22px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        color: #00f0ff;
+        text-shadow: 0 0 18px rgba(0, 240, 255, 0.5);
+        text-align: center;
+      }
+
+      .modal-subtitle {
+        font-size: 11px;
+        font-weight: 700;
+        color: #8892b0;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        margin-top: -8px;
+        text-align: center;
+      }
+
+      /* --- Upgrade Cards --- */
+      #upgrade-cards-list {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .upgrade-card {
+        width: 100%;
+        background: rgba(14, 19, 36, 0.9);
+        border: 1.5px solid rgba(0, 240, 255, 0.35);
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        cursor: pointer;
+        transition: all 0.16s ease;
+        text-align: left;
+      }
+
+      .upgrade-card:hover {
+        border-color: #00f0ff;
+        background: rgba(20, 30, 56, 0.95);
+        box-shadow: 0 0 18px rgba(0, 240, 255, 0.4);
+        transform: translateY(-2px);
+      }
+
+      .upgrade-card:active {
+        transform: scale(0.98);
+      }
+
+      .card-icon {
+        width: 44px;
+        height: 44px;
+        min-width: 44px;
+        border-radius: 10px;
+        background: rgba(0, 240, 255, 0.12);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+      }
+
+      .card-info {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .card-header-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .card-name {
+        font-size: 14px;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: 0.5px;
+      }
+
+      .card-badge {
+        font-size: 9px;
+        font-weight: 800;
+        color: #00ff88;
+        background: rgba(0, 255, 136, 0.15);
+        border: 1px solid rgba(0, 255, 136, 0.4);
+        border-radius: 6px;
+        padding: 2px 6px;
+        letter-spacing: 1px;
+      }
+
+      .card-desc {
+        font-size: 11px;
+        font-weight: 500;
+        color: #9cb0cf;
+        line-height: 1.35;
+      }
+
+      /* Modal Ad Buttons */
+      .modal-ad-buttons {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .btn-ad {
+        width: 100%;
+        padding: 11px 14px;
+        border-radius: 10px;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: all 0.15s ease;
+      }
+
+      .btn-ad-reroll {
+        background: rgba(18, 22, 40, 0.85);
+        border: 1.5px solid #ffbe0b;
+        color: #ffffff;
+        box-shadow: 0 0 12px rgba(255, 190, 11, 0.2);
+      }
+
+      .btn-ad-reroll:hover {
+        border-color: #ffffff;
+        box-shadow: 0 0 20px rgba(255, 190, 11, 0.45);
+        transform: translateY(-1px);
+      }
+
+      .btn-ad-pickall {
+        background: linear-gradient(135deg, rgba(255, 0, 85, 0.3), rgba(0, 240, 255, 0.3));
+        border: 1.5px solid #00ff88;
+        color: #ffffff;
+        box-shadow: 0 0 16px rgba(0, 255, 136, 0.3);
+      }
+
+      .btn-ad-pickall:hover {
+        border-color: #ffffff;
+        box-shadow: 0 0 24px rgba(0, 255, 136, 0.55);
+        transform: translateY(-1px);
+      }
+
+      .ad-badge {
+        font-size: 8px;
+        font-weight: 900;
+        letter-spacing: 1px;
+        color: #ffea00;
+        background: rgba(255, 234, 0, 0.18);
+        border: 1px solid rgba(255, 234, 0, 0.4);
+        padding: 2px 6px;
+        border-radius: 6px;
+      }
+
+      /* --- Game Over Modal Specifics --- */
+      #modal-gameover .modal-window {
+        border-color: #ff0055;
+        box-shadow: 0 0 35px rgba(255, 0, 85, 0.35);
+      }
+
+      #modal-gameover .modal-title {
+        color: #ff0055;
+        text-shadow: 0 0 18px rgba(255, 0, 85, 0.6);
+      }
+
+      .gameover-stats {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        background: rgba(10, 12, 22, 0.7);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .stat-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .stat-label {
+        font-size: 9px;
+        font-weight: 800;
+        color: #8892b0;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+      }
+
+      .stat-val {
+        font-size: 18px;
+        font-weight: 900;
+        color: #ffffff;
+      }
+
+      .btn-revive {
+        width: 100%;
+        padding: 13px 16px;
+        background: linear-gradient(135deg, rgba(255, 0, 85, 0.4), rgba(0, 240, 255, 0.4));
+        border: 2px solid #00f0ff;
+        border-radius: 12px;
+        color: #ffffff;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 1px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        transition: all 0.16s ease;
+      }
+
+      .btn-revive:hover {
+        border-color: #ffffff;
+        box-shadow: 0 0 30px rgba(0, 240, 255, 0.7);
+        transform: translateY(-2px);
+      }
+
+      .btn-restart {
+        width: 100%;
+        padding: 11px 16px;
+        background: rgba(14, 18, 32, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 12px;
+        color: #9cb0cf;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        cursor: pointer;
+        transition: all 0.15s ease;
+      }
+
+      .btn-restart:hover {
+        color: #ffffff;
+        border-color: #00f0ff;
       }
     </style>
   </head>
   <body>
     <div id="game-container">
-      <canvas id="game-canvas"></canvas>
+      <div id="game-wrapper">
+        <!-- Top XP Bar -->
+        <div id="xp-bar-container">
+          <div id="xp-bar-fill"></div>
+        </div>
+        <div id="lvl-badge">LVL 1</div>
+
+        <!-- Header HUD -->
+        <div id="hud-header">
+          <div class="hud-left">
+            <div class="hp-container">
+              <span class="hp-label" id="hp-text">HP: 100/100</span>
+              <div class="hp-bar-bg">
+                <div id="hp-bar-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="hud-center">
+            <span id="hud-timer">00:00</span>
+            <span id="hud-kills">💀 0</span>
+          </div>
+
+          <div class="hud-right">
+            <button id="btn-sound" class="hud-icon-btn" title="Toggle Sound">🔊</button>
+          </div>
+        </div>
+
+        <!-- Boss Warning & Health Bar -->
+        <div id="boss-hud">
+          <span class="boss-label">⚠️ ANOMALY TITAN DETECTED ⚠️</span>
+          <div class="boss-hp-bg">
+            <div id="boss-hp-fill"></div>
+          </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Level Up Modal -->
+        <div id="modal-levelup" class="modal-overlay">
+          <div class="modal-window">
+            <div class="modal-title">CYBER MATRIX UPGRADE</div>
+            <div class="modal-subtitle">Select Core Enhancement</div>
+
+            <div id="upgrade-cards-list">
+              <!-- Dynamically populated 3 cards -->
+            </div>
+
+            <div class="modal-ad-buttons">
+              <button id="btn-reroll" class="btn-ad btn-ad-reroll">
+                <span>🎲 Reroll Upgrades</span>
+                <span class="ad-badge">AD REWARD</span>
+              </button>
+              <button id="btn-pick-all" class="btn-ad btn-ad-pickall">
+                <span>🌟 Pick ALL 3 Upgrades!</span>
+                <span class="ad-badge">AD REWARD</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="modal-gameover" class="modal-overlay">
+          <div class="modal-window">
+            <div class="modal-title">SYSTEM TERMINATED</div>
+            <div class="modal-subtitle">Ship Core Offline</div>
+
+            <div class="gameover-stats">
+              <div class="stat-item">
+                <span class="stat-label">SURVIVED</span>
+                <span class="stat-val" id="modal-time">00:00</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">ENEMIES SLAIN</span>
+                <span class="stat-val" id="modal-kills">0</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">LEVEL REACHED</span>
+                <span class="stat-val" id="modal-level">1</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-label">BEST RECORD</span>
+                <span class="stat-val" id="modal-best">00:00</span>
+              </div>
+            </div>
+
+            <div class="modal-ad-buttons">
+              <button id="btn-revive" class="btn-revive">
+                <span>⚡ Revive + Nuke Screen</span>
+                <span class="ad-badge">AD REWARD</span>
+              </button>
+              <button id="btn-restart" class="btn-restart">
+                🔄 Restart Mission
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
+
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>
