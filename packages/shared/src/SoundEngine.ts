@@ -146,7 +146,9 @@ export class SoundEngine {
     const ctx = this.ensureContext();
     if (!ctx || !this.masterGain) return;
 
-    const baseFreq = Math.max(80, Math.min(2400, 320 * pitch));
+    const baseFreq = pitch > 20
+      ? Math.max(80, Math.min(2400, pitch))
+      : Math.max(80, Math.min(2400, 320 * pitch));
     const now = ctx.currentTime;
     const duration = 0.22;
 
