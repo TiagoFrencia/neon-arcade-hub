@@ -9,9 +9,22 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const sessionDir = path.resolve(rootDir, '.auth-session');
+const artifactsDir = path.resolve(rootDir, 'releases', 'logs');
+
+if (!fs.existsSync(artifactsDir)) {
+  fs.mkdirSync(artifactsDir, { recursive: true });
+}
 
 function logStep(msg) {
-  console.log(`\n[ITCH-BOT] ${msg}`);
+  console.log(`\n[ITCH-BOT-HEADLESS] ${msg}`);
+}
+
+async function takeScreenshot(page, name) {
+  try {
+    const shotPath = path.resolve(artifactsDir, `${name}.png`);
+    await page.screenshot({ path: shotPath, fullPage: true });
+    logStep(`Captura guardada en: ${shotPath}`);
+  } catch (e) {}
 }
 
 async function isItchLoggedIn(page, context) {
@@ -20,13 +33,72 @@ async function isItchLoggedIn(page, context) {
     const hasToken = cookies.some(c => c.name === 'itchio_token');
     if (hasToken) return true;
 
-    // Test dashboard access
-    await page.goto('https://itch.io/dashboard', { waitUntil: 'domcontentloaded', timeout: 10000 });
+    await page.goto('https://itch.io/dashboard', { waitUntil: 'domcontentloaded', timeout: 12000 });
     const currentUrl = page.url();
     return !currentUrl.includes('/login') && !currentUrl.includes('/register');
   } catch (err) {
     return false;
   }
+}
+
+async function performHeadlessLogin(page, context) {
+  const username = process.env.ITCH_USERNAME;
+  const password = process.env.ITCH_PASSWORD;
+  const token = process.env.ITCHIO_TOKEN || process.env.ITCH_COOKIE;
+
+  // 1. Si tenemos cookie de sesión directa, inyectarla
+  if (token) {
+    logStep('Inyectando cookie itchio_token provista...');
+    await context.addCookies([{
+      name: 'itchio_token',
+      value: token.trim(),
+      domain: '.itch.io',
+      path: '/',
+      httpOnly: true,
+      secure: true
+    }]);
+
+    await page.goto('https://itch.io/dashboard', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    if (await isItchLoggedIn(page, context)) {
+      logStep('¡Autenticado exitosamente mediante itchio_token!');
+      return true;
+    }
+  }
+
+  // 2. Si tenemos usuario y contraseña, rellenar en headless
+  if (username && password) {
+    logStep(`Intentando login headless para usuario: ${username}...`);
+    await page.goto('https://itch.io/login', { waitUntil: 'domcontentloaded', timeout: 20000 });
+    await page.waitForTimeout(1000);
+
+    const userField = await page.$('input[name="username"], #username');
+    const passField = await page.$('input[name="password"], #password');
+    const submitBtn = await page.$('button[type="submit"], button:has-text("Log in")');
+
+    if (userField && passField && submitBtn) {
+      await userField.fill(username);
+      await passField.fill(password);
+      await submitBtn.click();
+      await page.waitForTimeout(4000);
+
+      // Comprobar si pide 2FA o Captcha
+      const currentUrl = page.url();
+      if (currentUrl.includes('/two-factor') || currentUrl.includes('/totp')) {
+        await takeScreenshot(page, 'itch-2fa-required');
+        throw new Error('ITCH_2FA_REQUIRED: Se requiere código 2FA / TOTP.');
+      }
+
+      if (await isItchLoggedIn(page, context)) {
+        logStep('¡Login headless con credenciales exitoso!');
+        return true;
+      } else {
+        await takeScreenshot(page, 'itch-login-failed');
+        throw new Error('ITCH_LOGIN_FAILED: Verifique usuario y contraseña o revise captcha en itch-login-failed.png');
+      }
+    }
+  }
+
+  return false;
 }
 
 async function detectItchUsername(page) {
@@ -41,7 +113,7 @@ async function detectItchUsername(page) {
 }
 
 async function publishGameToItch(page, game, username) {
-  logStep(`>>> Publicando "${game.title}" (${game.slug})...`);
+  logStep(`>>> Publicando "${game.title}" (${game.slug}) en modo headless...`);
 
   // 1. Navegar a game/new
   await page.goto('https://itch.io/game/new', { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -147,24 +219,22 @@ async function publishGameToItch(page, game, username) {
     logStep(`Género seleccionado: ${game.itchGenre}`);
   }
 
-  // 12. Subir Archivo ZIP HTML5 directo en la página
+  // 12. Subir Archivo ZIP HTML5
   if (fs.existsSync(game.zip)) {
     logStep(`Subiendo archivo de release: ${path.basename(game.zip)}...`);
     const fileInput = await page.$('.upload_file_btn input[type="file"], input[type="file"][name="file"], input[type="file"][name*="upload"]');
     if (fileInput) {
       await fileInput.setInputFiles(game.zip);
-      // Esperar a que termine de subir
-      logStep(`Esperando subida del paquete ZIP...`);
-      await page.waitForTimeout(4000);
+      logStep(`Esperando finalización de subida del paquete...`);
+      await page.waitForTimeout(5000);
       try {
         await page.waitForSelector('.upload_progress, .progress_bar', { state: 'detached', timeout: 60000 });
-      } catch (e) {
-        // Ignorar si ya terminó o no usó barra de progreso
-      }
+      } catch (e) {}
+
       logStep(`Archivo ZIP subido con éxito.`);
+      await page.waitForTimeout(2000);
 
       // Tildar "This file will be played in the browser"
-      await page.waitForTimeout(1500);
       const playedInBrowser = await page.$('input[type="checkbox"][name*="browser"], input[type="checkbox"][value="browser"], label:has-text("This file will be played in the browser") input[type="checkbox"]');
       if (playedInBrowser) {
         await playedInBrowser.check().catch(() => {});
@@ -173,15 +243,21 @@ async function publishGameToItch(page, game, username) {
     }
   }
 
-  // 13. Opcional: Butler push si Butler está autenticado
+  // 13. Butler CLI Push como soporte secundario si hay API key
+  const apiKey = process.env.BUTLER_API_KEY;
   const butlerPath = path.resolve(rootDir, 'bin', 'butler.exe');
-  if (fs.existsSync(butlerPath) && username) {
+  const targetUser = username || process.env.ITCH_USERNAME;
+
+  if (fs.existsSync(butlerPath) && apiKey && targetUser) {
     try {
-      logStep(`Probando Butler push como soporte CLI para ${username}/${game.slug}:html5...`);
-      execSync(`"${butlerPath}" push "${game.zip}" ${username}/${game.slug}:html5`, { stdio: 'inherit' });
-      logStep(`Butler push ejecutado correctamente.`);
+      logStep(`Ejecutando Butler push con BUTLER_API_KEY para ${targetUser}/${game.slug}:html5...`);
+      execSync(`"${butlerPath}" push "${game.zip}" ${targetUser}/${game.slug}:html5`, {
+        stdio: 'inherit',
+        env: { ...process.env, BUTLER_API_KEY: apiKey }
+      });
+      logStep(`Butler push ejecutado exitosamente.`);
     } catch (e) {
-      logStep(`(Nota: Butler push CLI omitido o requiere login token en butler_creds; la subida vía web UI ya está completa).`);
+      logStep(`Aviso Butler push: ${e.message}`);
     }
   }
 
@@ -214,71 +290,57 @@ async function publishGameToItch(page, game, username) {
     logStep(`Aviso visibilidad: ${err.message}`);
   }
 
+  await takeScreenshot(page, `itch-success-${game.slug}`);
   logStep(`✅ Publicación de ${game.title} completada en Itch.io!`);
 }
 
 async function run() {
-  logStep('Iniciando navegador con contexto persistente...');
+  logStep('Iniciando navegador en modo HEADLESS: TRUE (100% Remoto)...');
   if (!fs.existsSync(sessionDir)) {
     fs.mkdirSync(sessionDir, { recursive: true });
   }
 
   const context = await chromium.launchPersistentContext(sessionDir, {
-    headless: false,
-    slowMo: 150,
+    headless: true,
     viewport: { width: 1440, height: 900 },
     args: [
       '--disable-blink-features=AutomationControlled',
-      '--no-sandbox',
-      '--start-maximized'
+      '--no-sandbox'
     ]
   });
 
   const page = context.pages().length > 0 ? context.pages()[0] : await context.newPage();
 
-  // Paso A: Login Check
-  logStep('Comprobando estado de sesión en Itch.io...');
-  await page.goto('https://itch.io/login', { waitUntil: 'domcontentloaded', timeout: 30000 });
-
+  // Comprobar si ya hay sesión previa o intentar login
   let loggedIn = await isItchLoggedIn(page, context);
   if (!loggedIn) {
-    console.log('\n=============================================================');
-    console.log('POR FAVOR INICIA SESIÓN EN LA VENTANA DE ITCH.IO.');
-    console.log('EL AGENTE CONTINUARÁ SOLO APENAS DETECTE EL DASHBOARD / SESIÓN.');
-    console.log('=============================================================\n');
-
-    while (!loggedIn) {
-      await page.waitForTimeout(2500);
-      const url = page.url();
-      if (!url.includes('/login') && !url.includes('/register') && !url.includes('/captcha')) {
-        const cookies = await context.cookies('https://itch.io');
-        const hasToken = cookies.some(c => c.name === 'itchio_token');
-        if (hasToken || url.includes('/dashboard')) {
-          loggedIn = true;
-          break;
-        }
-      }
-    }
+    loggedIn = await performHeadlessLogin(page, context);
   }
 
-  logStep('¡Sesión en Itch.io verificada exitosamente!');
+  if (!loggedIn) {
+    await takeScreenshot(page, 'itch-login-needed');
+    console.error('\n[AUTH REQUERIDA] No hay sesión activa en Itch.io.');
+    console.error('Proporcione ITCH_USERNAME + ITCH_PASSWORD, ITCHIO_TOKEN o BUTLER_API_KEY para continuar de forma remota.');
+    process.exit(2);
+  }
+
+  logStep('¡Sesión verificada exitosamente!');
   const username = await detectItchUsername(page);
   if (username) logStep(`Usuario detectado: ${username}`);
 
-  // Paso B: Recorrer los 5 juegos secuencialmente
   for (let i = 0; i < GAMES.length; i++) {
     const game = GAMES[i];
     console.log(`\n-------------------------------------------------------------`);
-    console.log(`[${i + 1}/${GAMES.length}] PROCESANDO: ${game.shortTitle}`);
+    console.log(`[${i + 1}/${GAMES.length}] PROCESANDO EN MODO REMOTO: ${game.shortTitle}`);
     console.log(`-------------------------------------------------------------`);
     await publishGameToItch(page, game, username);
   }
 
-  logStep('🎉 ¡TODOS LOS 5 JUEGOS HAN SIDO PROCESADOS EN ITCH.IO!');
-  console.log('Manteniendo la sesión abierta para confirmación.');
+  logStep('🎉 ¡TODOS LOS 5 JUEGOS PUBLICADOS EXITOSAMENTE EN ITCH.IO!');
+  await context.close();
 }
 
 run().catch(err => {
-  console.error('[ITCH-BOT ERROR]', err);
+  console.error('[ITCH-BOT ERROR]', err.message);
   process.exit(1);
 });

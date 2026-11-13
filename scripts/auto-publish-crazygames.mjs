@@ -145,13 +145,11 @@ async function run() {
   }
 
   const context = await chromium.launchPersistentContext(sessionDir, {
-    headless: false,
-    slowMo: 150,
+    headless: true,
     viewport: { width: 1440, height: 900 },
     args: [
       '--disable-blink-features=AutomationControlled',
-      '--no-sandbox',
-      '--start-maximized'
+      '--no-sandbox'
     ]
   });
 
