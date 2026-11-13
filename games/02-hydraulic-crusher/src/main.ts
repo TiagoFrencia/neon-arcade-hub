@@ -194,6 +194,9 @@ function buyUpgrade(type: keyof UpgradesState): void {
   if (coins >= cost) {
     coins -= cost;
     upgrades[type]++;
+    if (type === 'objectTier') {
+      adManager.happyTime();
+    }
     soundEngine.playLevelUp();
     saveGame();
     updateUI();
@@ -227,6 +230,7 @@ btnOverdrive.addEventListener('pointerdown', () => {
 
   adManager.showRewarded(() => {
     sim.activateOverdrive(120);
+    adManager.happyTime();
     soundEngine.playLevelUp();
     cameraShake.shake(12, 0.4);
     particles.spawnNeonBurst(240, 375, '#ff4500', 45, 300);
@@ -272,6 +276,7 @@ btnDroneClaim.addEventListener('pointerdown', () => {
     earningsWindow.push({ time: performance.now(), amount: pendingDroneBounty });
     droneMgr.despawnDrone();
     modalDrone.classList.remove('show');
+    adManager.happyTime();
 
     soundEngine.playLevelUp();
     cameraShake.shake(14, 0.45);
@@ -443,4 +448,5 @@ function gameLoop(time: number): void {
 // Initial Boot
 checkOfflineEarnings();
 updateUI();
+adManager.gameplayStart();
 requestAnimationFrame(gameLoop);

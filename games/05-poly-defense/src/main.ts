@@ -81,8 +81,16 @@ const game = new PolyDefenseGame({
   onSoundExplosion: () => soundEngine.playExplosion(),
   onSoundPop: () => soundEngine.playPop(),
   onSoundCrunch: () => soundEngine.playCrunch(),
-  onSoundMerge: (pitch) => soundEngine.playMerge(pitch),
-  onSoundLevelUp: () => soundEngine.playLevelUp(),
+  onSoundMerge: (pitch) => {
+    soundEngine.playMerge(pitch);
+    if (pitch >= 300) {
+      adManager.happyTime();
+    }
+  },
+  onSoundLevelUp: () => {
+    soundEngine.playLevelUp();
+    adManager.happyTime();
+  },
   onSoundGameOver: () => soundEngine.playGameOver(),
   onSoundClick: () => soundEngine.playClick(),
   onSpawnParticles: (x, y, color, count, speed) => {
@@ -221,6 +229,8 @@ btnReviveRepair.addEventListener('click', (e) => {
     game.triggerRepairAndFreezeReward();
     modalDefeat.style.display = 'none';
     isPaused = false;
+    adManager.gameplayStart();
+    adManager.happyTime();
     updateHUD();
   });
 });
@@ -258,6 +268,7 @@ function updateHUD(): void {
 // Game Over Handler
 function handleGameOver(): void {
   isPaused = true;
+  adManager.gameplayStop();
   modalDefeat.style.display = 'flex';
   defeatWave.textContent = `${game.currentWave}`;
   defeatKills.textContent = `${game.totalKills}`;
@@ -312,5 +323,6 @@ function gameLoop(time: number): void {
   requestAnimationFrame(gameLoop);
 }
 
+adManager.gameplayStart();
 requestAnimationFrame(gameLoop);
 updateHUD();

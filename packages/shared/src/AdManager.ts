@@ -3,6 +3,8 @@
  * Handles dynamic script injection, environment detection, and automatic 2-second mock ad fallback.
  */
 
+import { soundEngine } from './SoundEngine';
+
 // Global CrazyGames SDK typing
 declare global {
   interface Window {
@@ -20,6 +22,11 @@ declare global {
               adError?: (error: unknown) => void;
             }
           ) => Promise<void>;
+        };
+        game?: {
+          gameplayStart: () => void;
+          gameplayStop: () => void;
+          happyTime: () => void;
         };
       };
     };
@@ -43,6 +50,9 @@ export class AdManager {
   private isShowingAd = false;
 
   constructor(options?: AdManagerOptions) {
+    if (typeof window !== 'undefined') {
+      (window as any).adManager = this;
+    }
     if (options?.onPauseGame) this.onPauseGame = options.onPauseGame;
     if (options?.onResumeGame) this.onResumeGame = options.onResumeGame;
 
@@ -198,6 +208,11 @@ export class AdManager {
 
   private triggerPause(): void {
     try {
+      soundEngine.setMuted(true);
+    } catch {
+      // Ignore sound error
+    }
+    try {
       this.onPauseGame?.();
     } catch {
       // Ignore hook error
@@ -209,6 +224,63 @@ export class AdManager {
       this.onResumeGame?.();
     } catch {
       // Ignore hook error
+    }
+  }
+
+  /**
+   * Dispatches CrazyGames gameplayStart event.
+   * Call when active gameplay begins (after menu, level start, revival).
+   */
+  public gameplayStart(): void {
+    try {
+      if (this.sdkAvailable && window.CrazyGames?.SDK?.game?.gameplayStart) {
+        window.CrazyGames.SDK.game.gameplayStart();
+      }
+      if (typeof window !== 'undefined') {
+        (window as any).__lastAdEvent = 'gameplayStart';
+        window.dispatchEvent(new CustomEvent('crazygames:gameplayStart'));
+      }
+      console.log('[AdManager] gameplayStart dispatched');
+    } catch (err) {
+      console.warn('[AdManager] gameplayStart error:', err);
+    }
+  }
+
+  /**
+   * Dispatches CrazyGames gameplayStop event.
+   * Call when gameplay pauses or stops (game over, pause modal, main menu).
+   */
+  public gameplayStop(): void {
+    try {
+      if (this.sdkAvailable && window.CrazyGames?.SDK?.game?.gameplayStop) {
+        window.CrazyGames.SDK.game.gameplayStop();
+      }
+      if (typeof window !== 'undefined') {
+        (window as any).__lastAdEvent = 'gameplayStop';
+        window.dispatchEvent(new CustomEvent('crazygames:gameplayStop'));
+      }
+      console.log('[AdManager] gameplayStop dispatched');
+    } catch (err) {
+      console.warn('[AdManager] gameplayStop error:', err);
+    }
+  }
+
+  /**
+   * Dispatches CrazyGames happyTime event.
+   * Call when player achieves a milestone (boss defeat, high combo, level win).
+   */
+  public happyTime(): void {
+    try {
+      if (this.sdkAvailable && window.CrazyGames?.SDK?.game?.happyTime) {
+        window.CrazyGames.SDK.game.happyTime();
+      }
+      if (typeof window !== 'undefined') {
+        (window as any).__lastAdEvent = 'happyTime';
+        window.dispatchEvent(new CustomEvent('crazygames:happyTime'));
+      }
+      console.log('[AdManager] happyTime dispatched');
+    } catch (err) {
+      console.warn('[AdManager] happyTime error:', err);
     }
   }
 

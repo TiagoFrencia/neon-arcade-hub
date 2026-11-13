@@ -124,6 +124,9 @@ physics.setOnMergeCallback((event) => {
   } else {
     // Especificación del juego: disparando SoundEngine.playMerge(nivel * 100), partículas y ScreenShake
     soundEngine.playMerge(event.newTier * 100);
+    if (event.isSupernova || event.newTier >= 6) {
+      adManager.happyTime();
+    }
 
     const config = TIERS[event.newTier - 1];
     particles.spawnNeonBurst(
@@ -311,6 +314,7 @@ btnRainbow.addEventListener('click', async (e) => {
 function triggerGameOver(): void {
   if (isGameOver) return;
   isGameOver = true;
+  adManager.gameplayStop();
 
   soundEngine.playGameOver();
   modalFinalScore.textContent = score.toLocaleString();
@@ -344,6 +348,8 @@ btnRevive.addEventListener('click', async (e) => {
     dangerTimer = 0;
     isGameOver = false;
     modalGameOver.classList.remove('visible');
+    adManager.gameplayStart();
+    adManager.happyTime();
 
     soundEngine.playLevelUp();
     cameraShake.shake(10, 0.4);
@@ -385,6 +391,7 @@ btnRestart.addEventListener('click', async (e) => {
   isRainbowActive = false;
   btnRainbow.classList.remove('active');
   modalGameOver.classList.remove('visible');
+  adManager.gameplayStart();
 
   currentTier = getRandomSpawnTier();
   nextTier = getRandomSpawnTier();
@@ -505,4 +512,5 @@ function gameLoop(time: number): void {
   requestAnimationFrame(gameLoop);
 }
 
+adManager.gameplayStart();
 requestAnimationFrame(gameLoop);

@@ -338,6 +338,7 @@ function killEnemy(enemy: Enemy): void {
   if (enemy.isBoss) {
     activeBoss = null;
     bossHud.classList.remove('visible');
+    adManager.happyTime();
     soundEngine.playExplosion();
     cameraShake.shake(16, 0.6);
     particles.spawnFloatingText(player.x, player.y - 30, '👑 BOSS ELIMINATED!', CYBER_COLORS.yellow, 26, 2.0);
@@ -492,6 +493,7 @@ function applyUpgrade(choice: UpgradeOption): void {
 function closeLevelUpModal(): void {
   modalLevelUp.classList.remove('visible');
   gameState = 'playing';
+  adManager.gameplayStart();
 }
 
 // Rewarded Ad: Reroll Upgrades
@@ -522,6 +524,7 @@ btnPickAll.addEventListener('pointerdown', async (e) => {
 // Player Death & Game Over
 function handleGameOver(): void {
   gameState = 'game_over';
+  adManager.gameplayStop();
   soundEngine.playGameOver();
   cameraShake.shake(18, 0.6);
   particles.spawnNeonBurst(player.x, player.y, CYBER_COLORS.magenta, 45, 300);
@@ -568,6 +571,8 @@ btnRevive.addEventListener('pointerdown', async (e) => {
 
     modalGameOver.classList.remove('visible');
     gameState = 'playing';
+    adManager.gameplayStart();
+    adManager.happyTime();
   });
 });
 
@@ -621,6 +626,7 @@ function restartGame(): void {
   camera.y = -VIRTUAL_HEIGHT / 2;
 
   gameState = 'playing';
+  adManager.gameplayStart();
 }
 
 // Update Top HUD
@@ -854,4 +860,5 @@ function gameLoop(time: number): void {
 }
 
 // Start Game Loop
+adManager.gameplayStart();
 requestAnimationFrame(gameLoop);

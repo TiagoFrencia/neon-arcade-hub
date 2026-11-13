@@ -351,6 +351,9 @@ function handleJumpArrival(jump: JumpingTile): void {
       const comboBonus = Math.max(1, jump.comboStep);
       const earnedScore = 100 * comboBonus;
       score += earnedScore;
+      if (jump.comboStep >= 2) {
+        adManager.happyTime();
+      }
       if (score > bestScore) {
         bestScore = score;
         storage.setHighScore(bestScore);
@@ -399,6 +402,7 @@ function checkOutOfSpace(): void {
 
   if (emptyCount === 0 && remainingHandStacks > 0) {
     gameState = 'OUT_OF_SPACE';
+    adManager.gameplayStop();
     oosScore.textContent = score.toLocaleString();
     oosLevel.textContent = `${level}`;
     modalOutOfSpace.style.display = 'flex';
@@ -408,6 +412,8 @@ function checkOutOfSpace(): void {
 // Progression & Level Complete
 function triggerLevelComplete(): void {
   gameState = 'LEVEL_COMPLETE';
+  adManager.happyTime();
+  adManager.gameplayStop();
   soundEngine.playLaser();
   particles.spawnNeonBurst(VIRTUAL_WIDTH / 2, 350, '#ffd000', 50, 300, 5);
 
@@ -431,6 +437,7 @@ function proceedToNextLevel(): void {
     generateHand(false);
     updateHUD();
     gameState = 'PLAYING';
+    adManager.gameplayStart();
   });
 }
 
@@ -528,6 +535,8 @@ function triggerReviveVaporize(): void {
 
     modalOutOfSpace.style.display = 'none';
     gameState = 'PLAYING';
+    adManager.gameplayStart();
+    adManager.happyTime();
     updateHUD();
   });
 }
@@ -539,6 +548,7 @@ function restartLevel(): void {
   goalProgress = 0;
   updateHUD();
   gameState = 'PLAYING';
+  adManager.gameplayStart();
 }
 
 // Event Listeners for UI Buttons
@@ -750,4 +760,5 @@ function gameLoop(currentTime: number): void {
 // Initial Game Boot
 generateHand(false);
 updateHUD();
+adManager.gameplayStart();
 requestAnimationFrame(gameLoop);

@@ -14,6 +14,9 @@ export class SoundEngine {
   constructor() {
     this.initAudioContext();
     this.setupUnlockListeners();
+    if (typeof window !== 'undefined') {
+      (window as any).soundEngine = this;
+    }
   }
 
   public static getInstance(): SoundEngine {

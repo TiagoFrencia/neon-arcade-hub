@@ -11,6 +11,11 @@ build/
 releases/*.zip
 !releases/.gitkeep
 
+# Local tooling and session caches
+bin/
+.auth-session/
+.auth-session*
+
 # IDE and OS files
 .DS_Store
 Thumbs.db

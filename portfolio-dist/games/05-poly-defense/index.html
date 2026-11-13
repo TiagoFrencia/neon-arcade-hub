@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Poly Defense - Merge & Tower Defense</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #06080e;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      #game-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at center, #0f172a 0%, #06080e 100%);
+      }
+
+      #game-wrapper {
+        position: relative;
+        width: 480px;
+        height: 800px;
+        transform-origin: center center;
+        box-shadow: 0 0 50px rgba(56, 189, 248, 0.15);
+        overflow: hidden;
+        border-radius: 12px;
+        background: #080b12;
+      }
+
+      #game-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 480px;
+        height: 800px;
+        display: block;
+      }
+
+      /* --- Top HUD Header --- */
+      #hud-header {
+        position: absolute;
+        top: 10px;
+        left: 14px;
+        right: 14px;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .hud-pill {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.35);
+        border-radius: 8px;
+        padding: 4px 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        box-shadow: 0 0 12px rgba(56, 189, 248, 0.12);
+      }
+
+      .hud-label {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        color: #94a3b8;
+        text-transform: uppercase;
+      }
+
+      .hud-value {
+        font-size: 15px;
+        font-weight: 900;
+        color: #ffffff;
+      }
+
+      .hud-gold {
+        color: #facc15;
+        border-color: rgba(250, 204, 21, 0.4);
+      }
+
+      .hud-base-hp {
+        border-color: rgba(34, 197, 94, 0.4);
+      }
+
+      .hud-btn {
+        pointer-events: auto;
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(56, 189, 248, 0.4);
+        border-radius: 8px;
+        color: #ffffff;
+        font-size: 16px;
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: transform 0.1s, border-color 0.2s;
+      }
+
+      .hud-btn:active {
+        transform: scale(0.92);
+      }
+
+      /* --- Boost Banner --- */
+      #boost-banner {
+        position: absolute;
+        top: 74px;
+        left: 14px;
+        right: 14px;
+        background: linear-gradient(90deg, rgba(234, 179, 8, 0.2), rgba(245, 158, 11, 0.35), rgba(234, 179, 8, 0.2));
+        border: 1px solid #eab308;
+        border-radius: 6px;
+        padding: 4px 10px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        font-size: 11px;
+        font-weight: 800;
+        color: #fef08a;
+        letter-spacing: 0.5px;
+        box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+        z-index: 10;
+        animation: pulseBoost 1.8s infinite ease-in-out;
+      }
+
+      @keyframes pulseBoost {
+        0%, 100% { opacity: 0.9; }
+        50% { opacity: 1; filter: drop-shadow(0 0 8px #facc15); }
+      }
+
+      /* --- Top Rewarded Ad Action Buttons --- */
+      #ad-actions-bar {
+        position: absolute;
+        top: 106px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        gap: 8px;
+        z-index: 10;
+      }
+
+      .ad-btn {
+        flex: 1;
+        background: rgba(15, 23, 42, 0.9);
+        border: 1.5px solid rgba(56, 189, 248, 0.4);
+        border-radius: 8px;
+        padding: 6px 8px;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 800;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: transform 0.1s, border-color 0.2s, background 0.2s;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
+      }
+
+      .ad-btn:active {
+        transform: scale(0.96);
+      }
+
+      .ad-btn-airdrop {
+        border-color: #38bdf8;
+      }
+
+      .ad-btn-speed {
+        border-color: #f59e0b;
+      }
+
+      .ad-badge {
+        font-size: 8px;
+        background: rgba(239, 68, 68, 0.25);
+        color: #f87171;
+        border: 1px solid #ef4444;
+        border-radius: 4px;
+        padding: 1px 4px;
+        letter-spacing: 1px;
+      }
+
+      /* --- Bottom Action Area --- */
+      #bottom-action-panel {
+        position: absolute;
+        bottom: 24px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        z-index: 10;
+      }
+
+      #btn-spawn-turret {
+        width: 100%;
+        max-width: 440px;
+        height: 52px;
+        background: linear-gradient(135deg, #0284c7, #0369a1);
+        border: 2px solid #38bdf8;
+        border-radius: 12px;
+        color: #ffffff;
+        font-size: 16px;
+        font-weight: 900;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(56, 189, 248, 0.35);
+        transition: transform 0.1s, filter 0.15s, background 0.2s;
+      }
+
+      #btn-spawn-turret:active {
+        transform: scale(0.97);
+      }
+
+      #btn-spawn-turret.cant-afford {
+        background: #1e293b;
+        border-color: #475569;
+        color: #94a3b8;
+        box-shadow: none;
+      }
+
+      .archetypes-legend {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0 4px;
+      }
+
+      .legend-pill {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 9px;
+        font-weight: 700;
+        color: #94a3b8;
+      }
+
+      .legend-dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+      }
+
+      /* --- Modals --- */
+      .modal-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(8, 11, 18, 0.92);
+        backdrop-filter: blur(6px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        padding: 24px;
+      }
+
+      .modal-card {
+        background: linear-gradient(145deg, #0f172a, #1e293b);
+        border: 2px solid #ef4444;
+        border-radius: 16px;
+        box-shadow: 0 0 35px rgba(239, 68, 68, 0.35);
+        width: 100%;
+        max-width: 380px;
+        padding: 28px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 16px;
+      }
+
+      .modal-title {
+        font-size: 24px;
+        font-weight: 900;
+        letter-spacing: 1px;
+        color: #ef4444;
+        text-transform: uppercase;
+      }
+
+      .modal-subtitle {
+        font-size: 13px;
+        color: #cbd5e1;
+        line-height: 1.4;
+      }
+
+      .modal-stats {
+        width: 100%;
+        background: rgba(15, 23, 42, 0.6);
+        border-radius: 8px;
+        padding: 12px;
+        display: flex;
+        justify-content: space-around;
+      }
+
+      .modal-stat-box {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .modal-btn-repair {
+        width: 100%;
+        height: 48px;
+        background: linear-gradient(135deg, #059669, #10b981);
+        border: 2px solid #34d399;
+        border-radius: 10px;
+        color: #ffffff;
+        font-size: 14px;
+        font-weight: 900;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        cursor: pointer;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.35);
+        transition: transform 0.1s;
+      }
+
+      .modal-btn-repair:active {
+        transform: scale(0.97);
+      }
+
+      .modal-btn-restart {
+        width: 100%;
+        height: 42px;
+        background: transparent;
+        border: 1px solid #64748b;
+        border-radius: 10px;
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .modal-btn-restart:active {
+        background: rgba(255, 255, 255, 0.05);
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-BZiWZPF7.js"></script>
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="game-wrapper">
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Top HUD -->
+        <div id="hud-header">
+          <div class="hud-pill">
+            <span class="hud-label">Wave</span>
+            <span id="hud-wave" class="hud-value">1</span>
+          </div>
+
+          <div class="hud-pill hud-base-hp">
+            <span class="hud-label">Base HP</span>
+            <span id="hud-base-hp" class="hud-value">10/10</span>
+          </div>
+
+          <div class="hud-pill hud-gold">
+            <span class="hud-label">Gold</span>
+            <span id="hud-gold" class="hud-value">80</span>
+          </div>
+
+          <div class="hud-pill">
+            <span class="hud-label">Score</span>
+            <span id="hud-score" class="hud-value">0</span>
+          </div>
+
+          <button id="btn-sound" class="hud-btn" title="Toggle Sound">🔊</button>
+        </div>
+
+        <!-- Boost Active Banner -->
+        <div id="boost-banner">
+          <span>⚡ 2X SPEED & DOUBLE GOLD:</span>
+          <span id="boost-waves-count">3 WAVES LEFT</span>
+        </div>
+
+        <!-- Top Rewarded Ad Buttons -->
+        <div id="ad-actions-bar">
+          <button id="btn-ad-airdrop" class="ad-btn ad-btn-airdrop">
+            <span>📦 AirDrop Crate</span>
+            <span class="ad-badge">AD</span>
+          </button>
+          <button id="btn-ad-boost" class="ad-btn ad-btn-speed">
+            <span>⚡ 2X Speed & Gold</span>
+            <span class="ad-badge">AD</span>
+          </button>
+        </div>
+
+        <!-- Bottom Action Panel -->
+        <div id="bottom-action-panel">
+          <button id="btn-spawn-turret">
+            <span>🚀 Spawn Turret</span>
+            <span id="spawn-cost-text">(Cost: 20 Gold)</span>
+          </button>
+
+          <!-- 4 Archetypes Legend -->
+          <div class="archetypes-legend">
+            <div class="legend-pill">
+              <div class="legend-dot" style="background: #00f0ff;"></div>
+              <span>Blaster</span>
+            </div>
+            <div class="legend-pill">
+              <div class="legend-dot" style="background: #ff7700;"></div>
+              <span>Cannon</span>
+            </div>
+            <div class="legend-pill">
+              <div class="legend-dot" style="background: #3b82f6;"></div>
+              <span>Frost</span>
+            </div>
+            <div class="legend-pill">
+              <div class="legend-dot" style="background: #a855f7;"></div>
+              <span>Sniper</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Base Defeat / Revive Modal -->
+        <div id="modal-defeat" class="modal-overlay">
+          <div class="modal-card">
+            <div class="modal-title">Base Destroyed</div>
+            <div class="modal-subtitle">
+              Hostile geometric waves breached your core defense bunker!
+            </div>
+
+            <div class="modal-stats">
+              <div class="modal-stat-box">
+                <span class="hud-label">Wave</span>
+                <span id="defeat-wave" class="hud-value">1</span>
+              </div>
+              <div class="modal-stat-box">
+                <span class="hud-label">Kills</span>
+                <span id="defeat-kills" class="hud-value">0</span>
+              </div>
+              <div class="modal-stat-box">
+                <span class="hud-label">Score</span>
+                <span id="defeat-score" class="hud-value">0</span>
+              </div>
+            </div>
+
+            <button id="btn-revive-repair" class="modal-btn-repair">
+              <span>🛡️ Repair Base + Freeze Enemies</span>
+              <span class="ad-badge">AD</span>
+            </button>
+
+            <button id="btn-defeat-restart" class="modal-btn-restart">
+              Restart Run
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>

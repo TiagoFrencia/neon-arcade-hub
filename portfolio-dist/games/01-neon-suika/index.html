@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Neon Suika - Cyberpunk Physics Merge</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🍉</text></svg>">
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #06070b;
+        color: #ffffff;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        touch-action: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      #game-container {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: radial-gradient(circle at center, #0f101d 0%, #06070b 100%);
+      }
+
+      #game-wrapper {
+        position: relative;
+        width: 480px;
+        height: 800px;
+        transform-origin: center center;
+        box-shadow: 0 0 50px rgba(0, 240, 255, 0.12);
+        overflow: hidden;
+      }
+
+      #game-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 480px;
+        height: 800px;
+        display: block;
+      }
+
+      /* --- Top HUD --- */
+      #hud-header {
+        position: absolute;
+        top: 12px;
+        left: 16px;
+        right: 16px;
+        height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        pointer-events: none;
+        z-index: 10;
+      }
+
+      .hud-score-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .hud-score-box {
+        background: rgba(14, 15, 26, 0.85);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        border-radius: 8px;
+        padding: 4px 10px;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+      }
+
+      .hud-label {
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+        color: #00f0ff;
+        text-transform: uppercase;
+      }
+
+      .hud-score-val {
+        font-size: 17px;
+        font-weight: 900;
+        color: #ffffff;
+        letter-spacing: 0.5px;
+      }
+
+      .hud-best-box {
+        border-color: rgba(255, 0, 127, 0.4);
+        box-shadow: 0 0 10px rgba(255, 0, 127, 0.15);
+      }
+
+      .hud-best-box .hud-label {
+        color: #ff007f;
+      }
+
+      .hud-center-preview {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: rgba(14, 15, 26, 0.88);
+        border: 1px solid rgba(0, 240, 255, 0.35);
+        border-radius: 10px;
+        padding: 4px 8px;
+        box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+      }
+
+      .hud-center-preview .hud-label {
+        font-size: 8px;
+        margin-bottom: 2px;
+      }
+
+      #next-canvas {
+        width: 36px;
+        height: 36px;
+        display: block;
+      }
+
+      .hud-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        pointer-events: auto;
+      }
+
+      .hud-icon-btn {
+        width: 38px;
+        height: 38px;
+        border-radius: 8px;
+        background: rgba(18, 19, 32, 0.9);
+        border: 1px solid rgba(0, 240, 255, 0.4);
+        color: #ffffff;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+      }
+
+      .hud-icon-btn:hover {
+        background: rgba(0, 240, 255, 0.2);
+        border-color: #00f0ff;
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+        transform: scale(1.05);
+      }
+
+      .hud-icon-btn:active {
+        transform: scale(0.95);
+      }
+
+      /* --- Bottom Action HUD (Rewarded Ads) --- */
+      #hud-actions {
+        position: absolute;
+        bottom: 12px;
+        left: 20px;
+        right: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        z-index: 10;
+        pointer-events: auto;
+      }
+
+      .ad-btn {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 9px 8px;
+        background: linear-gradient(135deg, rgba(20, 21, 35, 0.95), rgba(12, 13, 24, 0.95));
+        border: 1.5px solid #00f0ff;
+        border-radius: 12px;
+        color: #ffffff;
+        font-family: inherit;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: 0.5px;
+        cursor: pointer;
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.25);
+        transition: all 0.18s ease;
+      }
+
+      .ad-btn:hover {
+        box-shadow: 0 0 25px rgba(0, 240, 255, 0.45);
+        border-color: #ffffff;
+        transform: translateY(-2px);
+      }
+
+      .ad-btn:active {
+        transform: scale(0.97);
+      }
+
+      .ad-btn-rainbow {
+        border-color: #ff007f;
+        box-shadow: 0 0 15px rgba(255, 0, 127, 0.25);
+      }
+
+      .ad-btn-rainbow:hover {
+        box-shadow: 0 0 25px rgba(255, 0, 127, 0.45);
+      }
+
+      .ad-tag {
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 1.2px;
+        color: #ffea00;
+        background: rgba(255, 234, 0, 0.15);
+        border: 1px solid rgba(255, 234, 0, 0.4);
+        padding: 2px 7px;
+        border-radius: 999px;
+      }
+
+      /* Active indicator when Rainbow Orb is ready */
+      .ad-btn-rainbow.active {
+        border-color: #ffee00;
+        background: linear-gradient(135deg, rgba(255, 0, 127, 0.3), rgba(0, 240, 255, 0.3));
+        box-shadow: 0 0 25px rgba(255, 238, 0, 0.6);
+        animation: pulseRainbow 1.2s infinite alternate;
+      }
+
+      @keyframes pulseRainbow {
+        0% { filter: drop-shadow(0 0 5px #00f0ff); }
+        100% { filter: drop-shadow(0 0 12px #ff007f); }
+      }
+
+      /* --- Game Over Modal --- */
+      #modal-gameover {
+        position: absolute;
+        inset: 0;
+        background: rgba(8, 9, 15, 0.88);
+        backdrop-filter: blur(10px);
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        z-index: 50;
+      }
+
+      #modal-gameover.visible {
+        display: flex;
+        animation: modalFadeIn 0.3s ease-out;
+      }
+
+      @keyframes modalFadeIn {
+        from {
+          opacity: 0;
+          transform: scale(0.94);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      .modal-card {
+        width: 100%;
+        max-width: 360px;
+        background: linear-gradient(145deg, #131422, #1a1b2e);
+        border: 2px solid #ff0055;
+        border-radius: 20px;
+        padding: 30px 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 18px;
+        box-shadow: 0 0 40px rgba(255, 0, 85, 0.35);
+      }
+
+      .modal-title {
+        font-size: 26px;
+        font-weight: 900;
+        letter-spacing: 2px;
+        color: #ff0055;
+        text-shadow: 0 0 20px rgba(255, 0, 85, 0.6);
+      }
+
+      .modal-subtitle {
+        font-size: 12px;
+        font-weight: 700;
+        color: #8892b0;
+        letter-spacing: 1.5px;
+      }
+
+      .modal-stats {
+        width: 100%;
+        display: flex;
+        justify-content: space-around;
+        background: rgba(10, 11, 20, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px;
+      }
+
+      .modal-stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .modal-stat-label {
+        font-size: 10px;
+        font-weight: 800;
+        color: #00f0ff;
+        letter-spacing: 1px;
+      }
+
+      .modal-stat-val {
+        font-size: 22px;
+        font-weight: 900;
+        color: #ffffff;
+      }
+
+      .modal-btn-group {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .modal-btn {
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 12px;
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 900;
+        letter-spacing: 0.8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        transition: all 0.18s ease;
+      }
+
+      .btn-revive {
+        background: linear-gradient(90deg, #ff007f, #b000ff);
+        border: none;
+        color: #ffffff;
+        box-shadow: 0 0 20px rgba(255, 0, 127, 0.4);
+      }
+
+      .btn-revive:hover {
+        box-shadow: 0 0 30px rgba(255, 0, 127, 0.65);
+        transform: translateY(-2px);
+      }
+
+      .btn-restart {
+        background: rgba(22, 24, 40, 0.9);
+        border: 1.5px solid #00f0ff;
+        color: #00f0ff;
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+      }
+
+      .btn-restart:hover {
+        background: rgba(0, 240, 255, 0.15);
+        box-shadow: 0 0 25px rgba(0, 240, 255, 0.4);
+        transform: translateY(-2px);
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-rWQcjul0.js"></script>
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="game-wrapper">
+        <canvas id="game-canvas" width="480" height="800"></canvas>
+
+        <!-- Top Cyber HUD -->
+        <header id="hud-header">
+          <div class="hud-score-panel">
+            <div class="hud-score-box">
+              <div class="hud-label">SCORE</div>
+              <div id="score-display" class="hud-score-val">0</div>
+            </div>
+            <div class="hud-score-box hud-best-box">
+              <div class="hud-label">BEST</div>
+              <div id="best-display" class="hud-score-val">0</div>
+            </div>
+          </div>
+
+          <div class="hud-center-preview">
+            <div class="hud-label">NEXT</div>
+            <canvas id="next-canvas" width="36" height="36"></canvas>
+          </div>
+
+          <div class="hud-controls">
+            <button id="btn-sound" class="hud-icon-btn" title="Toggle Sound" aria-label="Toggle Sound">
+              🔊
+            </button>
+          </div>
+        </header>
+
+        <!-- Bottom Rewarded Ad Action Buttons -->
+        <div id="hud-actions">
+          <button id="btn-bomb" class="ad-btn" title="Bomb 4 smallest pieces" aria-label="Bomb Smallest">
+            <span>💣 Bomb Smallest</span>
+            <span class="ad-tag">WATCH AD</span>
+          </button>
+          <button id="btn-rainbow" class="ad-btn ad-btn-rainbow" title="Spawn wild Rainbow Orb" aria-label="Rainbow Orb">
+            <span>🌈 Rainbow Orb</span>
+            <span class="ad-tag">WATCH AD</span>
+          </button>
+        </div>
+
+        <!-- Game Over Modal -->
+        <div id="modal-gameover" role="dialog" aria-modal="true">
+          <div class="modal-card">
+            <div class="modal-title">GAME OVER</div>
+            <div class="modal-subtitle">CONTAINER OVERFLOWED</div>
+
+            <div class="modal-stats">
+              <div class="modal-stat-item">
+                <span class="modal-stat-label">FINAL SCORE</span>
+                <span id="modal-final-score" class="modal-stat-val">0</span>
+              </div>
+              <div class="modal-stat-item">
+                <span class="modal-stat-label">BEST RECORD</span>
+                <span id="modal-best-score" class="modal-stat-val">0</span>
+              </div>
+            </div>
+
+            <div class="modal-btn-group">
+              <button id="btn-revive" class="modal-btn btn-revive">
+                <span>✨ Revive (Clear Top 30%)</span>
+                <span class="ad-tag">WATCH AD</span>
+              </button>
+              <button id="btn-restart" class="modal-btn btn-restart">
+                <span>🔄 Play Again</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </body>
+</html>
