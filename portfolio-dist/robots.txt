@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tiagofrencia.github.io/neon-arcade-hub/sitemap.xml
