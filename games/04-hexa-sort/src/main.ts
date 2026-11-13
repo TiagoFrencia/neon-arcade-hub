@@ -13,8 +13,6 @@ import {
 import { HexBoard } from './board';
 import {
   COLOR_PALETTE,
-  ColorDef,
-  HAND_HEX_SIZE,
   HAND_SLOTS_X,
   HAND_Y,
   HEX_SIZE,
@@ -295,8 +293,6 @@ function stepMergeSequence(priorityCell?: HexCell): void {
   const baseRecipientHeight = recipient.stack.length * HEX_TILE_HEIGHT;
 
   comboStep++;
-  const pitchIdx = (comboStep - 1) % MERGE_PITCH_SCALE.length;
-  const soundPitch = MERGE_PITCH_SCALE[pitchIdx];
 
   for (let i = 0; i < transferCount; i++) {
     const isLast = i === transferCount - 1;

@@ -7,7 +7,6 @@ import {
   COLOR_PALETTE,
   ColorDef,
   HAND_HEX_SIZE,
-  HAND_SLOTS_X,
   HAND_Y,
   HEX_ISO_TILT,
   HEX_SIZE,
@@ -347,7 +346,7 @@ export class HexRenderer {
   public renderHandTrays(
     slots: HandSlot[],
     activeDragSlot: number | null,
-    time: number
+    _time?: number
   ): void {
     const ctx = this.ctx;
 
