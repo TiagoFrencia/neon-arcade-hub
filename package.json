@@ -11,6 +11,8 @@
     "build:shared": "npm --workspace=@arcade/shared run build",
     "build:all": "npm run build --workspaces --if-present",
     "pack": "node scripts/pack-game.mjs",
+    "publish:itch": "node scripts/auto-publish-itch.mjs",
+    "publish:crazygames": "node scripts/auto-publish-crazygames.mjs",
     "typecheck": "tsc -b"
   },
   "devDependencies": {
